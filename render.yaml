@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: agrihub-backend
+    env: node
+    plan: free
+    region: oregon
+    rootDir: agriHub-Backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://krishi-kendra1.vercel.app
+      - key: RAZER_KEY
+        sync: false
+      - key: RAZER_SECRET
+        sync: false
