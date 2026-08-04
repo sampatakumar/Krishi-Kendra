@@ -13,8 +13,8 @@ const createRazorpayOrder = async (req, res) => {
     }
 
     const razorpay = new Razorpay({
-      key_id: process.env.RAZER_KEY,
-      key_secret: process.env.RAZER_SECRET
+      key_id: process.env.RAZER_KEY || 'rzp_test_TLgM4XlAYLtCd7',
+      key_secret: process.env.RAZER_SECRET || 'WqyAttdFfAuymsVba57FA7ox'
     });
 
     const options = {
@@ -43,9 +43,10 @@ const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
+    const secret = process.env.RAZER_SECRET || 'WqyAttdFfAuymsVba57FA7ox';
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
-      .createHmac("sha256", process.env.RAZER_SECRET)
+      .createHmac("sha256", secret)
       .update(sign.toString())
       .digest("hex");
 

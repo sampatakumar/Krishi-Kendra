@@ -91,7 +91,7 @@ const Cart = () => {
       const { amount, id: order_id, currency } = result.data;
 
       const options = {
-        key: import.meta.env.VITE_RAZER_KEY || 'rzp_test_SlgmvRNGaG2SFH',
+        key: import.meta.env.VITE_RAZER_KEY || 'rzp_test_TLgM4XlAYLtCd7',
         amount: amount.toString(),
         currency: currency,
         name: "Krishi-Kendra Marketplace",
