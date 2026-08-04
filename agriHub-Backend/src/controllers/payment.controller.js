@@ -12,9 +12,13 @@ const createRazorpayOrder = async (req, res) => {
       return res.status(400).json({ message: 'Amount is required' });
     }
 
+    if (!process.env.RAZER_KEY || !process.env.RAZER_SECRET) {
+      return res.status(500).json({ message: 'Razorpay API credentials are not configured on server' });
+    }
+
     const razorpay = new Razorpay({
-      key_id: process.env.RAZER_KEY || 'rzp_test_TLgM4XlAYLtCd7',
-      key_secret: process.env.RAZER_SECRET || 'WqyAttdFfAuymsVba57FA7ox'
+      key_id: process.env.RAZER_KEY,
+      key_secret: process.env.RAZER_SECRET
     });
 
     const options = {
@@ -43,10 +47,13 @@ const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    const secret = process.env.RAZER_SECRET || 'WqyAttdFfAuymsVba57FA7ox';
+    if (!process.env.RAZER_SECRET) {
+      return res.status(500).json({ message: 'Razorpay secret is not configured on server' });
+    }
+
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
-      .createHmac("sha256", secret)
+      .createHmac("sha256", process.env.RAZER_SECRET)
       .update(sign.toString())
       .digest("hex");
 
@@ -65,3 +72,4 @@ module.exports = {
   createRazorpayOrder,
   verifyRazorpayPayment
 };
+
