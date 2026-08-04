@@ -3,7 +3,10 @@ import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Trash2, ShoppingBag } from 'lucide-react';
+import { 
+  Trash2, ShoppingBag, ShieldCheck, CreditCard, 
+  Truck, ArrowLeft, CheckCircle, Plus, Minus, MapPin, AlertCircle
+} from 'lucide-react';
 
 const loadScript = (src) => {
   return new Promise((resolve) => {
@@ -23,6 +26,9 @@ const Cart = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
+  const shippingFee = cartTotal > 1000 ? 0 : 50;
+  const grandTotal = cartTotal + shippingFee;
+
   const handleCheckout = async (e) => {
     if (e) e.preventDefault();
     if (!user) {
@@ -30,7 +36,7 @@ const Cart = () => {
       return;
     }
     if (!shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zipCode) {
-      alert("Please fill in your shipping details.");
+      alert("Please fill in your complete shipping address details.");
       return;
     }
     setPlacingOrder(true);
@@ -43,7 +49,7 @@ const Cart = () => {
       clearCart();
     } catch (error) {
       console.error('Error placing order', error);
-      alert('Failed to place order. Check console.');
+      alert('Failed to place order. Please try again.');
     } finally {
       setPlacingOrder(false);
     }
@@ -56,7 +62,7 @@ const Cart = () => {
       return;
     }
     if (!shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zipCode) {
-      alert("Please fill in your shipping details.");
+      alert("Please fill in your complete shipping address details.");
       return;
     }
     
@@ -64,20 +70,20 @@ const Cart = () => {
     try {
       const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
       if (!res) {
-        alert("Razorpay SDK failed to load. Are you online?");
+        alert("Razorpay SDK failed to load. Please check your internet connection.");
         setPlacingOrder(false);
         return;
       }
 
       // Create Order on Backend
       const result = await axios.post("/api/payment/create-order", {
-        amount: cartTotal + 10 // Total with shipping
+        amount: grandTotal
       }, {
         headers: { Authorization: `Bearer ${document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, "$1")}` }
       });
 
       if (!result.data) {
-        alert("Server error. Please try again.");
+        alert("Server error creating Razorpay order.");
         setPlacingOrder(false);
         return;
       }
@@ -88,8 +94,8 @@ const Cart = () => {
         key: import.meta.env.VITE_RAZER_KEY || 'rzp_test_SlgmvRNGaG2SFH',
         amount: amount.toString(),
         currency: currency,
-        name: "Krishi-Kendra",
-        description: "AgriStore Checkout",
+        name: "Krishi-Kendra Marketplace",
+        description: "Agricultural Supplies Purchase",
         order_id: order_id,
         handler: async function (response) {
           try {
@@ -99,13 +105,11 @@ const Cart = () => {
               razorpay_signature: response.razorpay_signature,
             };
 
-            // Verify Payment
             const verifyRes = await axios.post("/api/payment/verify-payment", data, {
               headers: { Authorization: `Bearer ${document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, "$1")}` }
             });
 
             if (verifyRes.data.message === 'Payment verified successfully') {
-              // Finalize order
               const items = cartItems.map(item => ({ product: item.product._id, quantity: item.quantity }));
               await axios.post('/api/orders', { 
                 items, 
@@ -121,7 +125,7 @@ const Cart = () => {
               setOrderSuccess(true);
               clearCart();
             } else {
-              alert('Payment verification failed!');
+              alert('Payment verification signature invalid!');
             }
           } catch (err) {
             console.error('Verification error', err);
@@ -134,7 +138,7 @@ const Cart = () => {
           contact: "9999999999"
         },
         theme: {
-          color: "var(--primary, #2ecc71)"
+          color: "#1B3022"
         }
       };
 
@@ -142,103 +146,204 @@ const Cart = () => {
       paymentObject.open();
     } catch (error) {
       console.error('Error in Razorpay Checkout', error);
-      alert('Failed to initialize payment. Check console.');
+      alert('Failed to initialize payment gateway.');
     } finally {
-      setPlacingOrder(false); // Enable buttons again after popup opens/closes
+      setPlacingOrder(false);
     }
   };
 
   if (orderSuccess) {
     return (
-      <div className="container" style={{ textAlign: 'center', padding: 'var(--hero-padding, 4rem) 0' }}>
-        <div style={{ display: 'inline-block', background: 'var(--primary)', color: 'white', padding: '1rem', borderRadius: '50%', marginBottom: '1.5rem' }}>
-          <ShoppingBag size={48} />
+      <div className="max-w-container-max mx-auto px-4 py-20 text-center">
+        <div className="w-20 h-20 bg-primary-container text-on-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
+          <CheckCircle size={40} className="text-secondary" />
         </div>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Order Placed Successfully!</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Thank you for your purchase. The seller will be notified to process your order.</p>
-        <Link to="/" className="btn btn-primary">Continue Shopping</Link>
+        <h2 className="font-h1 text-3xl font-extrabold text-on-surface mb-3">Order Confirmed & Placed!</h2>
+        <p className="text-sm text-on-surface-variant max-w-md mx-auto mb-8 leading-relaxed">
+          Thank you for ordering with Krishi Kendra. Your supplier has been notified to dispatch your agricultural products.
+        </p>
+        <Link to="/" className="inline-flex items-center gap-2 bg-primary text-on-primary font-bold text-sm px-8 py-3.5 rounded-lg shadow-sm hover:bg-primary-container transition-colors">
+          <ShoppingBag size={18} /> Continue Shopping
+        </Link>
       </div>
     );
   }
 
   if (cartItems.length === 0) {
     return (
-      <div className="container" style={{ textAlign: 'center', padding: '4rem 0' }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Your cart is empty</h2>
-        <Link to="/" className="btn btn-primary">Browse Products</Link>
+      <div className="max-w-container-max mx-auto px-4 py-20 text-center">
+        <ShoppingBag size={56} className="mx-auto text-on-surface-variant/40 mb-4" />
+        <h2 className="font-h1 text-2xl font-bold text-on-surface mb-2">Your Shopping Cart is Empty</h2>
+        <p className="text-sm text-on-surface-variant max-w-sm mx-auto mb-6">Explore our seeds, machinery, and fertilizer marketplace to add field supplies to your cart.</p>
+        <Link to="/" className="inline-flex items-center gap-2 bg-primary text-on-primary font-bold text-sm px-6 py-3 rounded-lg hover:bg-primary-container transition-colors">
+          Browse Marketplace
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <h1 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '2rem' }}>Shopping Cart</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="card" style={{ padding: 'var(--cart-padding, 1.5rem)' }}>
+    <div className="max-w-container-max mx-auto px-4 md:px-margin-desktop py-8 space-y-8">
+      <div className="flex justify-between items-center pb-4 border-b border-outline-variant/30">
+        <div>
+          <span className="text-xs font-bold text-secondary-dark uppercase tracking-widest font-body-md">Checkout</span>
+          <h1 className="font-h1 text-2xl md:text-3xl font-extrabold text-on-surface">Secure Shopping Cart</h1>
+        </div>
+        <Link to="/" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+          <ArrowLeft size={16} /> Back to Shopping
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Cart Item List */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-surface rounded-xl border border-outline-variant/40 divide-y divide-outline-variant/30 overflow-hidden shadow-sm">
             {cartItems.map(item => (
-              <div key={item.product._id} style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', padding: '1.5rem 0', borderBottom: '1px solid var(--border)' }}>
-                <img src={item.product.image} alt={item.product.title} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: 'var(--radius-md)' }} />
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{item.product.title}</h3>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>₹{item.product.price.toFixed(2)}</div>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', width: 'fit-content' }}>
-                      <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)} style={{ padding: '0.25rem 0.75rem', background: 'none', border: 'none', cursor: 'pointer' }}>-</button>
-                      <span style={{ padding: '0 0.75rem', fontWeight: 500 }}>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)} style={{ padding: '0.25rem 0.75rem', background: 'none', border: 'none', cursor: 'pointer' }}>+</button>
-                    </div>
-                    <button onClick={() => removeFromCart(item.product._id)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Trash2 size={16} /> Remove
-                    </button>
+              <div key={item.product._id} className="p-4 md:p-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div className="flex gap-4 items-center flex-1">
+                  <img 
+                    src={item.product.image || 'https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?auto=format&fit=crop&w=300&q=80'} 
+                    alt={item.product.title} 
+                    className="w-20 h-20 object-cover rounded-lg border border-outline-variant/30 bg-surface-container-low shrink-0"
+                  />
+                  <div>
+                    <span className="badge-stitch bg-surface-container text-on-surface text-[10px] mb-1">
+                      {item.product.category}
+                    </span>
+                    <h3 className="font-h3 text-base font-bold text-on-surface line-clamp-1">{item.product.title}</h3>
+                    <p className="text-sm font-bold text-primary-dark mt-0.5">₹{item.product.price.toLocaleString('en-IN')}</p>
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                  ₹{(item.product.price * item.quantity).toFixed(2)}
+
+                <div className="flex items-center justify-between w-full sm:w-auto gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-outline-variant/30">
+                  <div className="flex items-center border border-outline-variant/60 rounded-lg overflow-hidden bg-surface-container-low">
+                    <button 
+                      onClick={() => updateQuantity(item.product._id, item.quantity - 1)}
+                      className="p-2 text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="px-3 font-bold text-xs text-on-surface">{item.quantity}</span>
+                    <button 
+                      onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
+                      className="p-2 text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="font-h1 text-base font-bold text-on-surface">
+                      ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                    </div>
+                    <button 
+                      onClick={() => removeFromCart(item.product._id)}
+                      className="text-xs font-semibold text-danger hover:underline inline-flex items-center gap-1 mt-1"
+                    >
+                      <Trash2 size={13} /> Remove
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+
+          <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30 flex items-center gap-3 text-xs text-on-surface-variant font-semibold">
+            <Truck size={20} className="text-primary shrink-0" />
+            <span>Free shipping on all farm orders above ₹1,000. Delivered directly to your village/pin address.</span>
+          </div>
         </div>
 
-        <div>
-          <div className="card" style={{ padding: 'var(--cart-padding, 1.5rem)', position: 'sticky', top: '5rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>Order Summary</h3>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Subtotal ({cartItems.length} items)</span>
-              <span style={{ fontWeight: 500 }}>₹{cartTotal.toFixed(2)}</span>
+        {/* Order Summary & Payment Panel */}
+        <div className="bg-surface p-6 rounded-xl border border-outline-variant/40 shadow-sm space-y-6 sticky top-24">
+          <h3 className="font-h2 text-xl font-bold text-on-surface pb-3 border-b border-outline-variant/30">
+            Order Summary
+          </h3>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Items Total ({cartItems.length})</span>
+              <span className="font-bold text-on-surface">₹{cartTotal.toLocaleString('en-IN')}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
-              <span style={{ fontWeight: 500 }}>₹10.00</span>
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Rural Dispatch Shipping</span>
+              <span className="font-bold text-on-surface">
+                {shippingFee === 0 ? <span className="text-primary font-bold">FREE</span> : `₹${shippingFee}`}
+              </span>
             </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', fontSize: '1.25rem', fontWeight: 700 }}>
-              <span>Total</span>
-              <span>₹{(cartTotal + 10).toFixed(2)}</span>
+            <div className="pt-3 border-t border-outline-variant/30 flex justify-between text-base font-bold text-on-surface">
+              <span>Grand Total</span>
+              <span className="font-h1 text-2xl font-extrabold text-primary-dark">₹{grandTotal.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {/* Shipping Form */}
+          <form className="space-y-3 pt-3 border-t border-outline-variant/30">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface uppercase tracking-wider font-body-md mb-1">
+              <MapPin size={15} className="text-primary" /> Delivery Address
+            </div>
+            <input 
+              type="text" 
+              placeholder="Street / Farm / Village Address *"
+              value={shippingAddress.street} 
+              onChange={e => setShippingAddress({...shippingAddress, street: e.target.value})}
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary font-body-md"
+              required 
+            />
+            <input 
+              type="text" 
+              placeholder="District / City *"
+              value={shippingAddress.city} 
+              onChange={e => setShippingAddress({...shippingAddress, city: e.target.value})}
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary font-body-md"
+              required 
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input 
+                type="text" 
+                placeholder="State *"
+                value={shippingAddress.state} 
+                onChange={e => setShippingAddress({...shippingAddress, state: e.target.value})}
+                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary font-body-md"
+                required 
+              />
+              <input 
+                type="text" 
+                placeholder="Pincode *"
+                value={shippingAddress.zipCode} 
+                onChange={e => setShippingAddress({...shippingAddress, zipCode: e.target.value})}
+                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary font-body-md"
+                required 
+              />
             </div>
 
-            <form>
-              <h4 style={{ fontWeight: 600, marginBottom: '1rem' }}>Shipping Information</h4>
-              <input type="text" placeholder="Street Address" className="form-input" style={{ width: '100%', marginBottom: '0.5rem' }} value={shippingAddress.street} onChange={e => setShippingAddress({...shippingAddress, street: e.target.value})} required />
-              <input type="text" placeholder="City" className="form-input" style={{ width: '100%', marginBottom: '0.5rem' }} value={shippingAddress.city} onChange={e => setShippingAddress({...shippingAddress, city: e.target.value})} required />
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                <input type="text" placeholder="State" className="form-input" style={{ width: '50%' }} value={shippingAddress.state} onChange={e => setShippingAddress({...shippingAddress, state: e.target.value})} required />
-                <input type="text" placeholder="Zip Code" className="form-input" style={{ width: '50%' }} value={shippingAddress.zipCode} onChange={e => setShippingAddress({...shippingAddress, zipCode: e.target.value})} required />
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <button type="button" onClick={handleRazorpayCheckout} className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }} disabled={placingOrder}>
-                  {placingOrder ? 'Processing...' : `Pay with Razorpay (₹${(cartTotal + 10).toFixed(2)})`}
-                </button>
-                <button type="button" onClick={handleCheckout} className="btn btn-outline" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }} disabled={placingOrder}>
-                  {placingOrder ? 'Processing...' : `Cash on Delivery`}
-                </button>
-              </div>
-            </form>
+            <div className="pt-4 space-y-3">
+              <button 
+                type="button" 
+                onClick={handleRazorpayCheckout}
+                disabled={placingOrder}
+                className="w-full bg-primary text-on-primary py-3.5 px-4 rounded-lg font-bold text-sm hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <CreditCard size={18} />
+                {placingOrder ? 'Processing Payment...' : `Pay via Razorpay (₹${grandTotal.toLocaleString('en-IN')})`}
+              </button>
+
+              <button 
+                type="button" 
+                onClick={handleCheckout}
+                disabled={placingOrder}
+                className="w-full bg-surface-container text-on-surface border border-outline-variant/60 py-3 px-4 rounded-lg font-bold text-xs hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Truck size={16} />
+                {placingOrder ? 'Placing Order...' : 'Pay Cash on Delivery (COD)'}
+              </button>
+            </div>
+          </form>
+
+          <div className="pt-3 border-t border-outline-variant/30 text-center">
+            <span className="text-[11px] text-on-surface-variant font-semibold flex items-center justify-center gap-1">
+              <ShieldCheck size={14} className="text-primary" /> 256-bit Encrypted Razorpay Checkout
+            </span>
           </div>
         </div>
       </div>
