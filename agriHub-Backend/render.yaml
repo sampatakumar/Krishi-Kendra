@@ -5,8 +5,8 @@ services:
     plan: free
     region: oregon
     rootDir: agriHub-Backend
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: cd agriHub-Backend && npm install
+    startCommand: cd agriHub-Backend && npm start
     envVars:
       - key: PORT
         value: 10000
